@@ -1,0 +1,8 @@
+{
+  "author": "justadudewhohacks",
+  "license": "MIT",
+  "type": "module",
+  "dependencies": {
+    "face-api.js": "0.22.2"
+  }
+}

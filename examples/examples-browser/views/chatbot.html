@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Social Network Message UI</title>
+    <!-- Tailwind CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome CDN for icons -->
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css"
+    />
+    <!-- GSAP CDN -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+    <style>
+      /* Additional custom styles */
+      .message-container {
+        max-height: 400px;
+        overflow-y: auto;
+        padding-right: 10px; /* Ensure space for scrollbar */
+      }
+      .message-container::-webkit-scrollbar {
+        width: 8px;
+      }
+      .message-container::-webkit-scrollbar-thumb {
+        background-color: rgba(0, 0, 0, 0.1);
+        border-radius: 4px;
+      }
+      .message-container::-webkit-scrollbar-track {
+        background: rgba(0, 0, 0, 0.05);
+        border-radius: 4px;
+      }
+      .message-box {
+        padding: 12px;
+        border-radius: 8px;
+        display: flex;
+        align-items: center;
+        max-width: calc(
+          100% - 48px
+        ); /* Ensure messages fit within the container */
+        word-wrap: break-word; /* Handle text wrapping */
+        overflow-wrap: break-word;
+      }
+      .message-bot {
+        background-color: #f3f4f6;
+        color: #333;
+        text-align: left;
+      }
+      .message-user {
+        background-color: #e0f7fa;
+        color: #00796b;
+        text-align: right;
+        margin-left: auto; /* Align user messages to the right */
+      }
+      .message-icon {
+        margin-right: 8px;
+      }
+      .message-user .message-icon {
+        margin-left: 8px;
+        margin-right: 0;
+      }
+    </style>
+  </head>
+  <body class="bg-gray-100 min-h-screen flex items-center justify-center">
+    <div
+      class="chat-container bg-white p-6 rounded-lg shadow-md max-w-lg w-full space-y-4"
+    >
+      <h2 class="text-2xl font-semibold mb-4 text-center">
+        Social Network Chat
+      </h2>
+      <div id="chat-box" class="message-container space-y-4">
+        <!-- Initial bot welcome message -->
+        <div
+          class="message bot flex items-start space-x-3 message-box message-bot"
+        >
+          <i class="fas fa-robot text-gray-500 message-icon"></i>
+          <div class="message-text">
+            <span class="bot-welcome"
+              >Hello! Please upload a video for transcription.</span
+            >
+          </div>
+        </div>
+      </div>
+      <div class="flex items-center mt-4">
+        <input
+          type="file"
+          id="video-input"
+          accept="video/*"
+          class="w-full border border-gray-300 p-2 rounded-md focus:outline-none"
+        />
+        <button
+          id="upload-btn"
+          class="ml-2 bg-blue-500 text-white px-4 py-2 rounded-md flex items-center space-x-2"
+        >
+          <i class="fas fa-upload"></i>
+          <span>Upload Video</span>
+        </button>
+      </div>
+    </div>
+
+    <script>
+      document.addEventListener("DOMContentLoaded", () => {
+        const botWelcomeMessage = document.querySelector(".bot-welcome");
+        animateWords(botWelcomeMessage);
+      });
+
+      document.getElementById("upload-btn").addEventListener("click", () => {
+        const videoInput = document.getElementById("video-input");
+        if (videoInput.files.length === 0) {
+          alert("Please select a video file.");
+          return;
+        }
+
+        const formData = new FormData();
+        formData.append("video", videoInput.files[0]);
+
+        const chatBox = document.getElementById("chat-box");
+
+        // User message: Video uploaded
+        const userMessage = document.createElement("div");
+        userMessage.className =
+          "message user flex items-start space-x-3 message-box message-user";
+        userMessage.innerHTML = `
+        <div class="message-text">
+          <span>Video uploaded. Waiting for transcription...</span>
+        </div>
+        <i class="fas fa-user text-blue-500 message-icon"></i>
+      `;
+        chatBox.appendChild(userMessage);
+
+        // Bot message: Transcribing...
+        const botMessage = document.createElement("div");
+        botMessage.className =
+          "message bot flex items-start space-x-3 message-box message-bot";
+        botMessage.innerHTML = `
+        <i class="fas fa-robot text-gray-500 message-icon"></i>
+        <div class="message-text">
+          <span>Transcribing...</span>
+        </div>
+      `;
+        chatBox.appendChild(botMessage);
+
+        // Animate the transcribing message
+        animateWords(botMessage);
+
+        // Simulate server processing and transcription result
+        fetch("/upload", {
+          method: "POST",
+          body: formData,
+        })
+          .then((response) => response.json())
+          .then((data) => {
+            setTimeout(() => {
+              const resultMessage = document.createElement("div");
+              resultMessage.className =
+                "message bot flex items-start space-x-3 message-box message-bot";
+              resultMessage.innerHTML = `
+            
+            <div class="message-text">
+              <span>Transcription complete: "${data.transcription}"</span>
+            </div>
+          `;
+              chatBox.appendChild(resultMessage);
+
+              // Animate the transcription result message
+              animateWords(resultMessage);
+            }, 1000); // Simulated delay for transcription
+          })
+          .catch((error) => {
+            console.error("Error:", error);
+          });
+      });
+
+      // Function to animate words with GSAP
+      function animateWords(element) {
+        const text = element.textContent;
+        const words = text.split(" ");
+        element.innerHTML = words
+          .map((word) => `<span class="inline-block opacity-0">${word}</span>`)
+          .join(" ");
+
+        gsap.to(element.querySelectorAll("span"), {
+          opacity: 1,
+          stagger: 0.1,
+          ease: "power1.out",
+          duration: 0.5,
+        });
+      }
+    </script>
+  </body>
+</html>
