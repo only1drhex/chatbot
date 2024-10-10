@@ -1,288 +1,177 @@
 <!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <script src="face-api.min.js"></script>
-    <link rel="stylesheet" href="../output.css" />
-    <link
-      rel="stylesheet"
-      href="https://cdnjs.cloudflare.com/ajax/libs/materialize/0.100.2/css/materialize.css"
-    />
-    <script
-      type="text/javascript"
-      src="https://code.jquery.com/jquery-2.1.1.min.js"
-    ></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/materialize/0.100.2/js/materialize.min.js"></script>
-    <script src="https://only1drhex.github.io/anim/dist/gsap.min.js"></script>
-    <script src="https://only1drhex.github.io/anim/dist/ScrollTrigger.min.js"></script>
-    <script src="https://only1drhex.github.io/anim/dist/SplitText.min.js"></script>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <title>Face Recognition</title>
-  </head>
-  <body class="bg-black text-white relative">
-    <div
-      class="flex flex-col items-center justify-center min-h-screen space-y-8"
-    >
-      <div class="flex flex-col items-center space-y-1">
-        <div
-          style="-webkit-text-stroke: 1px #fff"
-          class="text-transparent text-white uppercase text-2xl font-bold captured hidden"
-        >
-          <div>CAPTURED</div>
-        </div>
-        <div
-          style="-webkit-text-stroke: 1px #fff"
-          class="text-transparent text-white uppercase text-2xl font-bold authenticating hidden"
-        >
-          <div>AUTHENTICATING</div>
-        </div>
-        <div
-          style="-webkit-text-stroke: 1px #fff"
-          class="text-transparent text-white uppercase text-2xl font-bold authenticated hidden"
-        >
-          <div>AUTHENTICATED</div>
-        </div>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Face Comparison</title>
+  <script src="https://cdn.jsdelivr.net/npm/face-api.js/dist/face-api.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.11.5/gsap.min.js"></script>
+  <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+  <style>
+    body {
+      background: linear-gradient(to right, #4facfe 0%, #00f2fe 100%);
+    }
+    video {
+      width: 100%;
+      max-width: 400px;
+      border-radius: 8px;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+    }
+    img {
+      display: none; /* Hidden for background loading */
+    }
+    .status, .result {
+      opacity: 0;
+      transform: translateY(20px);
+    }
+  </style>
+</head>
+<body class="flex flex-col items-center justify-center p-4">
+  <h1 class="text-4xl font-bold mb-6 text-white">Face Comparison</h1>
+  
+  <div class="flex mb-6">
+    <video id="video" autoplay></video>
+  </div>
+  
+  <h2 id="status" class="text-xl text-white mb-2"></h2>
+  <h2 id="result" class="text-xl text-white"></h2>
+  
+  <h3 id="previous-result" class="text-lg text-white mt-4"></h3>
 
-        <div
-          style="-webkit-text-stroke: 1px red"
-          class="text-transparent text-white uppercase text-2xl font-bold failed hidden"
-        >
-          <div>FAILED</div>
-        </div>
-        <div
-          style="-webkit-text-stroke: 1px red"
-          class="text-transparent text-white uppercase text-2xl font-bold noface hidden"
-        >
-          <div>NO FACE DETECTED</div>
-        </div>
+  <script>
+    const MODEL_URLS = {
+      Mobilenetv1Model: "https://raw.githubusercontent.com/ml5js/ml5-data-and-models/main/models/faceapi/ssd_mobilenetv1_model-weights_manifest.json",
+      FaceLandmarkModel: "https://raw.githubusercontent.com/ml5js/ml5-data-and-models/main/models/faceapi/face_landmark_68_model-weights_manifest.json",
+      FaceRecognitionModel: "https://raw.githubusercontent.com/ml5js/ml5-data-and-models/main/models/faceapi/face_recognition_model-weights_manifest.json",
+    };
 
-        <button
-          id="startButton"
-          class="px-4 py-2 text-white ring-white border-2 bg-transparent rounded-full"
-        >
-          Start Recognition
-        </button>
-      </div>
-      <div class="flex flex-col items-center space-y-8">
-        <video
-          id="video"
-          width="300"
-          height="300"
-          autoplay
-          class="border-2 border-gray-300 rounded-md"
-        ></video>
-        <canvas id="canvas" class="hidden"></canvas>
-      </div>
-      <input type="file" id="imageUpload" accept="image/*" class="hidden" />
-    </div>
-    <script>
-      const referenceDescriptor = [
-        -0.16692103445529938, 0.16550078988075256, 0.07614939659833908,
-        0.010062252171337605, 0.024985026568174362, -0.0606379508972168,
-        0.011045502498745918, 0.003911836072802544, 0.17139092087745667,
-        0.052226804196834564, 0.246927410364151, 0.017563950270414352,
-        -0.1736823469400406, -0.16427622735500336, 0.06036455184221268,
-        0.07295837998390198, -0.20678450167179108, -0.074918232858181,
-        -0.08137203752994537, -0.12525901198387146, 0.03856559470295906,
-        0.09550599753856659, 0.001744257053360343, 0.06663040071725845,
-        -0.11021538078784943, -0.2285178303718567, -0.010349949821829796,
-        -0.25790584087371826, 0.06593120843172073, -0.18455174565315247,
-        0.02216748706996441, -0.07733046263456345, -0.19402694702148438,
-        -0.05573078244924545, -0.10163242369890213, 0.010899008251726627,
-        0.02014746703207493, -0.030200842767953873, 0.16397078335285187,
-        -0.030085572972893715, -0.0975908637046814, -0.019638516008853912,
-        -0.06585042923688889, 0.289259672164917, 0.1852649748325348,
-        -0.05077634006738663, -0.03335642069578171, 0.01419692113995552,
-        0.1110919639468193, -0.2303411066532135, 0.049600694328546524,
-        0.14795196056365967, 0.11752232164144516, 0.04699591174721718,
-        0.05441398546099663, -0.15648865699768066, -0.05979660898447037,
-        0.014269022271037102, -0.19008883833885193, 0.05477789416909218,
-        0.05670531466603279, -0.02435488812625408, -0.10173307359218597,
-        -0.06741765886545181, 0.24505947530269623, 0.08218581229448318,
-        -0.11333012580871582, -0.14171290397644043, 0.13987261056900024,
-        -0.1111656054854393, -0.011610657908022404, 0.14905770123004913,
-        -0.0786256417632103, -0.14514108002185822, -0.2061263918876648,
-        0.16856475174427032, 0.30336177349090576, 0.08671119064092636,
-        -0.23723973333835602, 0.04652833938598633, -0.25511276721954346,
-        0.026823444291949272, -0.026589680463075638, -0.01962273009121418,
-        -0.049475159496068954, 0.0967201516032219, -0.16176794469356537,
-        0.02602311410009861, 0.06977250427007675, -0.018654724583029747,
-        0.006680381018668413, 0.23293164372444153, -0.006423217244446278,
-        -0.01491155568510294, 0.04637932777404785, -0.021030357107520103,
-        -0.05481225624680519, -0.013441324234008789, -0.055470772087574005,
-        0.0005611443193629384, 0.1329185664653778, -0.12135948985815048,
-        -0.0011266873916611075, 0.05028292164206505, -0.13346995413303375,
-        0.15463949739933014, 0.058323636651039124, 0.02989562600851059,
-        0.008671576157212257, 0.032852064818143845, -0.08795738965272903,
-        -0.046037375926971436, 0.21239064633846283, -0.2508407235145569,
-        0.24237406253814697, 0.05353803187608719, -0.011420411989092827,
-        0.16667111217975616, -0.008351326920092106, 0.16749240458011627,
-        -0.13459600508213043, -0.022654050961136818, -0.1262378841638565,
-        -0.02094445936381817, 0.03778136149048805, 0.009214199148118496,
-        0.010193648748099804, 0.06445812433958054,
-      ];
+    const REFERENCE_IMAGE_URL = './img.jpg';
 
-      let capturedAnimation = gsap.timeline({ paused: true });
+    const faceDetectionFrequency = localStorage.getItem('faceDetectionFrequency') || 2000;
 
-      // Capture animation
-      capturedAnimation
-        .to(".captured", {
-          display: "block",
-          opacity: 1,
-          scale: 2,
-          duration: 5,
-          ease: "expo.out",
-        })
-        .to(".captured", {
-          y: 200,
-          // display: "hidden",
-          opacity: 0,
-          scale: 0,
-          duration: 0,
-        });
-
-      // Failed animation
-      let failedAnimation = gsap.timeline({ paused: true });
-
-      // Capture animation
-      failedAnimation
-        .to(".failed", {
-          display: "block",
-          opacity: 1,
-          scale: 2,
-          duration: 5,
-          ease: "expo.out",
-        })
-        .to(".captured", {
-          y: 200,
-          // display: "hidden",
-          opacity: 0,
-          scale: 0,
-          duration: 0,
-        });
-
-      let faceAnimation = gsap.timeline({ paused: true });
-
-      // Capture animation
-      faceAnimation
-        .to(".noface", {
-          display: "block",
-          opacity: 1,
-          scale: 2,
-          duration: 5,
-          ease: "expo.out",
-        })
-        .to(".noface", {
-          y: 200,
-          opacity: 0,
-          scale: 0,
-          duration: 0,
-        });
-
-      const video = document.getElementById("video");
-      const canvas = document.getElementById("canvas");
-      const startButton = document.getElementById("startButton");
-
-      const MODEL_URLS = {
-        ssdMobilenetv1:
-          "/models/weights/ssd_mobilenetv1_model-weights_manifest.json",
-        faceLandmark68Net:
-          "/models/weights/face_landmark_68_model-weights_manifest.json",
-        faceRecognitionNet:
-          "/models/weights/face_recognition_model-weights_manifest.json",
-      };
-
-      // Load models
-      Promise.all([
-        faceapi.nets.ssdMobilenetv1.loadFromUri(MODEL_URLS.ssdMobilenetv1),
-        faceapi.nets.faceLandmark68Net.loadFromUri(
-          MODEL_URLS.faceLandmark68Net
-        ),
-        faceapi.nets.faceRecognitionNet.loadFromUri(
-          MODEL_URLS.faceRecognitionNet
-        ),
-      ]).then(startVideo);
-
-      function startVideo() {
-        navigator.mediaDevices
-          .getUserMedia({ video: {} })
-          .then((stream) => (video.srcObject = stream))
-          .catch((err) => console.error(err));
+    async function loadModels() {
+      if (localStorage.getItem('modelsLoaded') === 'true') {
+        console.log('Models already loaded');
+        return;
       }
 
-      startButton.addEventListener("click", async function () {
-        // Wait 3 seconds before taking a picture
-        setTimeout(() => {
-          captureImage();
-        }, 3000);
-      });
+      await Promise.all([
+        faceapi.nets.ssdMobilenetv1.loadFromUri(MODEL_URLS.Mobilenetv1Model),
+        faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URLS.FaceLandmarkModel),
+        faceapi.nets.faceRecognitionNet.loadFromUri(MODEL_URLS.FaceRecognitionModel),
+      ]);
+      console.log('Models loaded');
+      localStorage.setItem('modelsLoaded', 'true');
+    }
 
-      function captureImage() {
-        canvas.width = video.videoWidth;
-        canvas.height = video.videoHeight;
-        canvas
-          .getContext("2d")
-          .drawImage(video, 0, 0, canvas.width, canvas.height);
+    async function startVideo() {
+      const video = document.getElementById('video');
+      const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+      video.srcObject = stream;
 
-        processCapturedImage();
-      }
+      setInterval(() => detectFace(video), faceDetectionFrequency);
+    }
 
-      async function processCapturedImage() {
-        const capturedImage = new Image();
-        capturedImage.src = canvas.toDataURL();
+    async function loadReferenceImage() {
+      const referenceImage = new Image();
+      referenceImage.src = REFERENCE_IMAGE_URL;
+      await referenceImage.decode();
+      return referenceImage;
+    }
 
-        try {
-          const faceMatcher = new faceapi.FaceMatcher(
-            new faceapi.LabeledFaceDescriptors("Reference Face", [
-              new Float32Array(referenceDescriptor),
-            ]),
-            0.6 // Matching threshold
-          );
-          const detections = await faceapi
-            .detectSingleFace(capturedImage)
-            .withFaceLandmarks()
-            .withFaceDescriptor();
+    async function detectFace(video) {
+      // Load the face descriptor from local storage if available
+      const savedDescriptorString = localStorage.getItem('authenticatedFaceDescriptor');
+      if (savedDescriptorString) {
+        const savedDescriptor = new Float32Array(JSON.parse(savedDescriptorString));
+        
+        const faceDescriptor2 = await faceapi.detectSingleFace(video).withFaceLandmarks().withFaceDescriptor();
+        if (!faceDescriptor2) {
+          updateStatus('No live face detected');
+          return;
+        }
 
-          if (detections) {
-            const bestMatch = faceMatcher.findBestMatch(detections.descriptor);
-            if (bestMatch.distance < 0.6) {
-              capturedAnimation.restart(); // Show captured animation
-            } else {
-              failedAnimation.restart(); // Show failed animation
-              alert("not work");
-            }
-          } else {
-            faceAnimation.restart(); // Show failed animation
-          }
-        } catch (error) {
-          alert("Error during face detection:", error);
-          failedAnimation.restart(); // Show failed animation on error
+        const faceMatcher = new faceapi.FaceMatcher(savedDescriptor);
+        const match = faceMatcher.findBestMatch(faceDescriptor2.descriptor);
+        const similarityScore = match._distance;
+
+        if (similarityScore < 0.6) {
+          updateStatus('Face already authenticated');
+          displayResult('This face was already authenticated.');
+          return;
         }
       }
 
-      async function loadImageFromUrl(url) {
-        const img = new Image();
-        img.crossOrigin = "anonymous";
-        img.src = url;
-        return new Promise((resolve, reject) => {
-          img.onload = () => resolve(img);
-          img.onerror = reject;
-        });
+      // Otherwise, proceed to compare with the reference image
+      const referenceImage = await loadReferenceImage();
+      const faceDescriptor1 = await faceapi.detectSingleFace(referenceImage).withFaceLandmarks().withFaceDescriptor();
+
+      if (!faceDescriptor1) {
+        updateStatus('No reference face detected');
+        return;
       }
 
-      async function createLabeledFaceDescriptors(image) {
-        const label = "Face";
-        const detections = await faceapi
-          .detectSingleFace(image)
-          .withFaceLandmarks()
-          .withFaceDescriptor();
-        if (!detections) {
-          throw new Error("No face detected in the reference image.");
-        }
-        const descriptions = [detections.descriptor];
-        return new faceapi.LabeledFaceDescriptors(label, descriptions);
+      updateStatus('Reference face detected');
+
+      const faceDescriptor2 = await faceapi.detectSingleFace(video).withFaceLandmarks().withFaceDescriptor();
+      if (!faceDescriptor2) {
+        updateStatus('No live face detected');
+        return;
       }
-    </script>
-  </body>
+
+      updateStatus('Live face detected, capturing...');
+
+      const faceMatcher = new faceapi.FaceMatcher(faceDescriptor1);
+      updateStatus('Comparing faces...');
+
+      const match = faceMatcher.findBestMatch(faceDescriptor2.descriptor);
+      const similarityScore = match._distance;
+
+      let resultMessage = '';
+      if (similarityScore < 0.6) {
+        resultMessage = "These faces look very similar!";
+
+        // Save the authenticated face descriptor to local storage
+        localStorage.setItem('authenticatedFaceDescriptor', JSON.stringify(Array.from(faceDescriptor2.descriptor)));
+      } else if (similarityScore < 0.8) {
+        resultMessage = "These faces are somewhat similar.";
+      } else {
+        resultMessage = "These faces do not look similar.";
+      }
+
+      updateStatus('Comparison done');
+      displayResult(resultMessage);
+
+      // Save the comparison result to local storage
+      localStorage.setItem('lastComparisonResult', resultMessage);
+    }
+
+    function updateStatus(message) {
+      const statusElement = document.getElementById('status');
+      statusElement.innerText = message;
+      gsap.to(statusElement, { duration: 0.5, opacity: 1, translateY: 0, ease: "power3.out" });
+    }
+
+    function displayResult(resultMessage) {
+      const resultElement = document.getElementById('result');
+      resultElement.innerText = resultMessage;
+      gsap.to(resultElement, { duration: 1, opacity: 1, scale: 1.2, ease: "bounce.out" });
+      gsap.to(resultElement, { duration: 1, delay: 1, opacity: 1, scale: 1, ease: "bounce.out" });
+    }
+
+    function displayPreviousResult() {
+      const previousResult = localStorage.getItem('lastComparisonResult');
+      if (previousResult) {
+        const previousResultElement = document.getElementById('previous-result');
+        previousResultElement.innerText = Previous comparison result: ${previousResult};
+        gsap.to(previousResultElement, { duration: 1, opacity: 1, translateY: 0, ease: "power3.out" });
+      }
+    }
+
+    loadModels().then(() => {
+      startVideo();
+      displayPreviousResult();
+    });
+  </script>
+</body>
 </html>
